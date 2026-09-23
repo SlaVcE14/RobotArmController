@@ -47,7 +47,7 @@ The app communicates with the Arduino by sending simple text commands terminated
 * `A<+/->` - Move Arm 1
 * `S<+/->` - Move Arm 2
 * `C<0/180>` - Set Claw position
-*(The Arduino automatically handles limits for these commands).*
+* (The Arduino automatically handles limits for these commands).*
 
 **Action Commands:**
 * `P` - Power the servo motors ()
