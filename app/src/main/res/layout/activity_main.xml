@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/root"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+
+        <!-- Status -->
+        <TextView
+            android:id="@+id/statusText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:layout_weight="1"
+            android:text="@string/status_ready"
+            android:textSize="14sp" />
+
+
+        <!-- Scan Button -->
+        <Button
+            android:id="@+id/btnScan"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/btn_select"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Connect / Disconnect -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <Button
+                android:id="@+id/btnConnect"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/btn_connect"
+                android:layout_marginEnd="8dp"
+                android:enabled="false" />
+
+            <Button
+                android:id="@+id/btnDisconnect"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/btn_disconnect"
+                android:enabled="false" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <Button
+                android:id="@+id/btnPower"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:backgroundTint="@color/disconnected_red"
+                android:enabled="false"
+                android:text="@string/powerMotorsOff" />
+        </LinearLayout>
+
+        <!-- ════════ Joystick Controls (Hold to repeat) ════════ -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_marginBottom="16dp"
+            android:padding="8dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Base &amp; Arm 1"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp"/>
+
+            <Button
+                android:id="@+id/btnJoyUp"
+                android:layout_width="100dp"
+                android:layout_height="60dp"
+                android:text="▲\nArm"
+                android:enabled="false" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="horizontal">
+                <Button
+                    android:id="@+id/btnJoyLeft"
+                    android:layout_width="100dp"
+                    android:layout_height="60dp"
+                    android:text="◄ Base"
+
+                    android:enabled="false" />
+                <ImageView
+                    android:layout_width="100dp"
+                    android:layout_height="100dp"
+                    android:src="@drawable/base_and_arm1"
+
+                    />
+                <Button
+                    android:id="@+id/btnJoyRight"
+                    android:layout_width="100dp"
+                    android:layout_height="60dp"
+                    android:text="Base ►"
+                    android:enabled="false" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/btnJoyDown"
+                android:layout_width="100dp"
+                android:layout_height="60dp"
+                android:text="▼\nArm"
+                android:enabled="false" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:layout_marginBottom="16dp"
+            android:orientation="vertical"
+            >
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Arm 2"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp"/>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="horizontal">
+                <Button
+                    android:id="@+id/btnJoyArm2Down"
+                    android:layout_width="100dp"
+                    android:layout_height="60dp"
+                    android:text="◄ Arm"
+                    android:enabled="false" />
+                <ImageView
+                    android:layout_width="100dp"
+                    android:layout_height="100dp"
+                    android:src="@drawable/arm2"
+                    />
+                <Button
+                    android:id="@+id/btnJoyArm2Up"
+                    android:layout_width="100dp"
+                    android:layout_height="60dp"
+                    android:text="Arm ►"
+                    android:enabled="false" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+
+        <!-- Action Buttons -->
+        <Button
+            android:id="@+id/btnHome"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/btn_home"
+            android:enabled="false"
+            android:layout_marginBottom="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginBottom="16dp">
+
+            <Button
+                android:id="@+id/btnOpenClaw"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/btn_open_claw"
+                android:layout_marginEnd="8dp"
+                android:enabled="false" />
+
+            <ImageView
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:src="@drawable/claw"
+                />
+
+            <Button
+                android:id="@+id/btnCloseClaw"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/btn_close_claw"
+                android:enabled="false" />
+        </LinearLayout>
+
+        <!-- Received Data -->
+        <TextView
+            android:id="@+id/dataText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/received_none"
+            android:padding="8dp" />
+
+        <Button
+            android:id="@+id/aboutBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="About"
+            style="@style/Widget.Material3.Button.TextButton"
+            />
+
+    </LinearLayout>
+</ScrollView>

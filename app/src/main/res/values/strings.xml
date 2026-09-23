@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Robot Arm Controller</string>
+    <string name="title_robot_arm">Robot Arm Controller</string>
+    <string name="status_ready">Status: Ready</string>
+    <string name="btn_select">Select Device</string>
+    <string name="btn_scanning">Scanning…</string>
+    <string name="label_devices">Devices:</string>
+    <string name="btn_connect">Connect</string>
+    <string name="btn_disconnect">Disconnect</string>
+    <string name="label_servo_controls">Servo Controls</string>
+    <string name="angle_format">%d°</string>
+    <string name="btn_home">Home Position</string>
+    <string name="btn_open_claw">Open Claw</string>
+    <string name="btn_close_claw">Close Claw</string>
+    <string name="received_none">Received: None</string>
+    <string name="powerMotorsOff">Motors Power: OFF</string>
+    <string name="powerMotorsOn">Motors Power: ON</string>
+
+    <!--  About Page  -->
+    <string name="back">Back</string>
+    <string name="about">About</string>
+    <string name="name">Name</string>
+    <string name="version">Version</string>
+    <string name="open_source_libraries">Open source libraries</string>
+    <string name="check_for_update">Check for update</string>
+    <string name="open">Open…</string>
+    <string name="source">Source</string>
+    <string name="new_version_available">New version available</string>
+</resources>

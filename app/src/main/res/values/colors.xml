@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="servo_base">#FF1565C0</color>
+    <color name="servo_arm1">#FF2E7D32</color>
+    <color name="servo_arm2">#FFEF6C00</color>
+    <color name="servo_claw">#FFC62828</color>
+    <color name="section_bg">#FFF5F5F5</color>
+    <color name="connected_green">#FF4CAF50</color>
+    <color name="disconnected_red">#FFF44336</color>
+</resources>
