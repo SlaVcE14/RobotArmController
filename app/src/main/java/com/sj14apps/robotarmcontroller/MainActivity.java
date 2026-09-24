@@ -49,9 +49,8 @@ public class MainActivity extends AppCompatActivity {
     private static final long SEND_THROTTLE_MS = 50;
 
     // Default (home) angle for all servos
-    private static final int HOME_ANGLE = 90;
     private static final int CLAW_OPEN = 180;
-    private static final int CLAW_CLOSE = 0;
+    private static final int CLAW_CLOSE = 160;
 
     // ─── BLE GATT ────────────────────────────────────────────
     private BluetoothAdapter bluetoothAdapter;

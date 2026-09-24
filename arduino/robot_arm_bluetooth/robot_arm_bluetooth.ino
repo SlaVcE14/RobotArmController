@@ -54,7 +54,7 @@
 #define HOME_BASE     90
 #define HOME_ARM1     90
 #define HOME_ARM2     90
-#define HOME_CLAW     90
+#define HOME_CLAW     160
 
 // ─── Serial Baud Rate ────────────────────────────────────────
 #define BAUD_RATE     9600
@@ -197,9 +197,9 @@ void processCommand(String cmd) {
 
     case 'C':  // Claw
     case 'c':
-      if (value == "+" || value == "U") targetClaw = constrain(targetClaw + 4, 0, 180);
-      else if (value == "-" || value == "D") targetClaw = constrain(targetClaw - 4, 0, 180);
-      else targetClaw = constrain(value.toInt(), 0, 180);
+      if (value == "+" || value == "U") targetClaw = constrain(targetClaw + 4, 100, 180);
+      else if (value == "-" || value == "D") targetClaw = constrain(targetClaw - 4, 100, 180);
+      else targetClaw = constrain(value.toInt(), 160, 180);
       Serial.println("OK");
       break;
 
