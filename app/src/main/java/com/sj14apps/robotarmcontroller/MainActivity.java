@@ -22,6 +22,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.MotionEvent;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -35,6 +36,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.sj14apps.robotarmcontroller.about.AboutActivity;
+import com.sjapps.library.customdialog.CustomViewDialog;
 import com.sjapps.library.customdialog.ListDialog;
 import com.sjapps.library.customdialog.ListItemValues;
 
@@ -50,7 +52,7 @@ public class MainActivity extends AppCompatActivity {
 
     // Default (home) angle for all servos
     private static final int CLAW_OPEN = 180;
-    private static final int CLAW_CLOSE = 160;
+    private static int CLAW_CLOSE = 150;
 
     // ─── BLE GATT ────────────────────────────────────────────
     private BluetoothAdapter bluetoothAdapter;
@@ -225,6 +227,29 @@ public class MainActivity extends AppCompatActivity {
 
         btnCloseClaw.setOnClickListener(v -> {
             sendData("C" + CLAW_CLOSE + "\n");
+        });
+        btnCloseClaw.setOnLongClickListener(v -> {
+            EditText editText = new EditText(MainActivity.this);
+            editText.setText(CLAW_CLOSE +"");
+            CustomViewDialog dialog = new CustomViewDialog();
+            dialog.Builder(MainActivity.this,true)
+                    .setTitle("Set close position")
+                    .addCustomView(editText)
+                    .dialogWithTwoButtons()
+                    .onButtonClick(() -> {
+                        String string = editText.getText().toString();
+                        try {
+                            int num = Integer.parseInt(string);
+                            CLAW_CLOSE = num;
+
+                        }catch (Exception e){
+                            Toast.makeText(MainActivity.this, "Error", Toast.LENGTH_SHORT).show();
+                        }
+                        dialog.dismiss();
+                    })
+
+                    .show();
+            return true;
         });
 
         setupJoystickButton(btnJoyUp, "A+");
