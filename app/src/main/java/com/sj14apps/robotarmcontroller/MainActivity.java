@@ -4,16 +4,7 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCallback;
-import android.bluetooth.BluetoothGattCharacteristic;
-import android.bluetooth.BluetoothGattDescriptor;
-import android.bluetooth.BluetoothProfile;
-import android.bluetooth.BluetoothGattService;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.os.Build;
@@ -35,41 +26,20 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.sj14apps.robotarmcontroller.about.AboutActivity;
+import com.sj14apps.robotarmcontroller.ble.BluetoothController;
+import com.sj14apps.robotarmcontroller.ble.BluetoothStatus;
 import com.sjapps.library.customdialog.ListDialog;
 import com.sjapps.library.customdialog.ListItemValues;
 
-import java.util.ArrayList;
-import java.util.Set;
-import java.util.UUID;
-
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "RobotArm";
-    
+
     // Throttle: min interval between Bluetooth sends per servo (ms)
     private static final long SEND_THROTTLE_MS = 50;
 
-    // Default (home) angle for all servos
     private static final int CLAW_OPEN = 180;
     private static final int CLAW_CLOSE = 160;
 
-    // ─── BLE GATT ────────────────────────────────────────────
-    private BluetoothAdapter bluetoothAdapter;
-    private BluetoothGatt bluetoothGatt;
-    private BluetoothGattCharacteristic writeCharacteristic;
-    private BluetoothGattCharacteristic notifyCharacteristic;
-    private volatile boolean isConnected = false;
-    
-    // Standard BLE Serial UUIDs
-    private static final UUID CCCD_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
-    
-    // HM-10 / JDY-08 (Single characteristic for RX and TX)
-    private static final UUID HM10_SERVICE = UUID.fromString("0000ffe0-0000-1000-8000-00805f9b34fb");
-    private static final UUID HM10_CHAR = UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb");
-
-    // Nordic UART Service (Separate RX and TX)
-    private static final UUID NORDIC_SERVICE = UUID.fromString("6e400001-b5a3-f393-e0a9-e50e24dcca9e");
-    private static final UUID NORDIC_RX_CHAR = UUID.fromString("6e400002-b5a3-f393-e0a9-e50e24dcca9e"); // App writes to this
-    private static final UUID NORDIC_TX_CHAR = UUID.fromString("6e400003-b5a3-f393-e0a9-e50e24dcca9e"); // App receives from this
 
     // ─── UI Views ────────────────────────────────────────────
     private Button btnScan, btnConnect, btnDisconnect, btnPower;
@@ -77,49 +47,30 @@ public class MainActivity extends AppCompatActivity {
     private Button btnJoyUp, btnJoyDown, btnJoyLeft, btnJoyRight, btnJoyArm2Up, btnJoyArm2Down;
     private TextView statusText, dataText;
 
-
-    private ArrayList<BluetoothDevice> devices;
-    private BluetoothDevice selectedDevice;
-    private Handler mainHandler;
-
     private Handler repeatHandler = new Handler(Looper.getMainLooper());
     private Runnable repeatRunnable;
     private static final int REPEAT_INTERVAL_MS = 60; // How fast angle changes when holding button
 
 
+    BluetoothController bluetoothController;
+    public BluetoothDevice selectedDevice;
 
     boolean isMotorsOn;
 
-    private boolean receiverRegistered = false;
     private ActivityResultLauncher<String[]> permissionLauncher;
     private ActivityResultLauncher<Intent> enableBtLauncher;
 
     ListDialog devicesListDialog = new ListDialog();
-
-    // ─── Bluetooth Discovery Receiver ────────────────────────
-    private final BroadcastReceiver discoveryReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            if (BluetoothDevice.ACTION_FOUND.equals(action)) {
-                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                if (device != null && !devices.contains(device)) {
-                    devices.add(device);
-                }
-            } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
-                btnScan.setText(R.string.btn_select);
-                btnScan.setEnabled(true);
-                updateStatus("Scan complete — " + devices.size() + " devices found");
-            }
-        }
-    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        devicesListDialog.Builder(this,true)
+        bluetoothController = new BluetoothController(bleCallback, checkPermissionCallBack);
+        selectedDevice = bluetoothController.selectedDevice;
+
+        devicesListDialog.Builder(this, true)
                 .setTitle("Select Device")
                 .dialogWithTwoButtons()
                 .setRightButtonText("Scan")
@@ -128,12 +79,12 @@ public class MainActivity extends AppCompatActivity {
 
         initViews();
         setupPermissions();
-        setupBluetooth();
+        bluetoothController.setupBluetooth();
 
-        devicesListDialog.setItems(devices, new ListItemValues<BluetoothDevice>() {
+        devicesListDialog.setItems(bluetoothController.devices, new ListItemValues<>() {
             @Override
             public String getValue1(BluetoothDevice bluetoothDevice) {
-                String name = getDeviceName(bluetoothDevice);
+                String name = bluetoothController.getDeviceName(bluetoothDevice);
                 if (name.toLowerCase().contains("hc") || name.toLowerCase().contains("bt")) {
                     name = "⭐ " + name;
                 }
@@ -144,10 +95,11 @@ public class MainActivity extends AppCompatActivity {
             public String getValue2(BluetoothDevice bluetoothDevice) {
                 return bluetoothDevice.getAddress();
             }
-        },(i, bluetoothDevice) -> {
+        }, (i, bluetoothDevice) -> {
+            bluetoothController.selectDevice(bluetoothDevice);
             selectedDevice = bluetoothDevice;
             btnConnect.setEnabled(true);
-            updateStatus("Selected: " + getDeviceName(selectedDevice));
+            updateStatus("Selected: " + bluetoothController.getDeviceName(selectedDevice));
             devicesListDialog.dismiss();
         });
     }
@@ -155,8 +107,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (bluetoothAdapter != null && bluetoothAdapter.isEnabled() && hasBluetoothPermission()) {
-            loadPairedDevices();
+        if (bluetoothController.isBluetoothAvailable()) {
+            bluetoothController.loadPairedDevices(onDeviceLoadCallBack);
         }
     }
 
@@ -164,7 +116,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         disconnect();
-        unregisterDiscoveryReceiver();
+        bluetoothController.unregisterDiscoveryReceiver(this);
     }
 
     @Override
@@ -173,7 +125,7 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main);
         initViews();
-        updateUI(isConnected);
+        updateUI(bluetoothController.isConnected);
     }
 
     private void initViews() {
@@ -196,9 +148,6 @@ public class MainActivity extends AppCompatActivity {
         btnOpenClaw = findViewById(R.id.btnOpenClaw);
         btnCloseClaw = findViewById(R.id.btnCloseClaw);
 
-        devices = new ArrayList<>();
-        mainHandler = new Handler(Looper.getMainLooper());
-
         btnScan.setOnClickListener(v -> devicesListDialog.show());
         btnConnect.setOnClickListener(v -> connectDevice());
         btnDisconnect.setOnClickListener(v -> disconnect());
@@ -206,12 +155,12 @@ public class MainActivity extends AppCompatActivity {
         btnPower.setOnClickListener(v -> {
             isMotorsOn = !isMotorsOn;
             sendData("P\n");
-            btnPower.setBackgroundColor(isMotorsOn? getColor(R.color.connected_green):getColor(R.color.disconnected_red));
-            btnPower.setText(isMotorsOn? R.string.powerMotorsOn:R.string.powerMotorsOff);
+            btnPower.setBackgroundColor(isMotorsOn ? getColor(R.color.connected_green) : getColor(R.color.disconnected_red));
+            btnPower.setText(isMotorsOn ? R.string.powerMotorsOn : R.string.powerMotorsOff);
         });
 
         findViewById(R.id.aboutBtn).setOnClickListener(v -> {
-            startActivity(new Intent(this,AboutActivity.class));
+            startActivity(new Intent(this, AboutActivity.class));
         });
 
 
@@ -235,7 +184,7 @@ public class MainActivity extends AppCompatActivity {
         setupJoystickButton(btnJoyArm2Down, "S-");
 
         updateUI(false);
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.root),(v, insets) -> {
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.root), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
@@ -245,7 +194,7 @@ public class MainActivity extends AppCompatActivity {
     @SuppressLint("ClickableViewAccessibility")
     private void setupJoystickButton(Button btn, String command) {
         btn.setOnTouchListener((v, event) -> {
-            if (!isConnected) return false;
+            if (!bluetoothController.isConnected) return false;
 
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
@@ -276,21 +225,21 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void registerDiscoveryReceiver() {
-        if (receiverRegistered) return;
-        IntentFilter filter = new IntentFilter();
-        filter.addAction(BluetoothDevice.ACTION_FOUND);
-        filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
-        ContextCompat.registerReceiver(this, discoveryReceiver, filter, ContextCompat.RECEIVER_EXPORTED);
-        receiverRegistered = true;
-    }
-
-    private void unregisterDiscoveryReceiver() {
-        if (receiverRegistered) {
-            try { unregisterReceiver(discoveryReceiver); } catch (Exception e) {}
-            receiverRegistered = false;
-        }
-    }
+    //    private void registerDiscoveryReceiver() {
+    //        if (receiverRegistered) return;
+    //        IntentFilter filter = new IntentFilter();
+    //        filter.addAction(BluetoothDevice.ACTION_FOUND);
+    //        filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+    //        ContextCompat.registerReceiver(this, discoveryReceiver, filter, ContextCompat.RECEIVER_EXPORTED);
+    //        receiverRegistered = true;
+    //    }
+    //
+    //    private void unregisterDiscoveryReceiver() {
+    //        if (receiverRegistered) {
+    //            try { unregisterReceiver(discoveryReceiver); } catch (Exception e) {}
+    //            receiverRegistered = false;
+    //        }
+    //    }
 
 
     private void setupPermissions() {
@@ -304,7 +253,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         enableBtLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
-            if (bluetoothAdapter != null && bluetoothAdapter.isEnabled()) onPermissionsReady();
+            if (bluetoothController.bluetoothAdapter != null && bluetoothController.bluetoothAdapter.isEnabled()) onPermissionsReady(); //TODO
             else showToast("Bluetooth must be enabled");
         });
 
@@ -314,9 +263,9 @@ public class MainActivity extends AppCompatActivity {
     private void checkAndRequestPermissions() {
         String[] permissions;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            permissions = new String[]{ Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.ACCESS_FINE_LOCATION };
+            permissions = new String[]{Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.ACCESS_FINE_LOCATION};
         } else {
-            permissions = new String[]{ Manifest.permission.BLUETOOTH, Manifest.permission.BLUETOOTH_ADMIN, Manifest.permission.ACCESS_FINE_LOCATION };
+            permissions = new String[]{Manifest.permission.BLUETOOTH, Manifest.permission.BLUETOOTH_ADMIN, Manifest.permission.ACCESS_FINE_LOCATION};
         }
 
         boolean needPermission = false;
@@ -331,85 +280,34 @@ public class MainActivity extends AppCompatActivity {
         else onPermissionsReady();
     }
 
-    private void onPermissionsReady() {
-        if (bluetoothAdapter == null) return;
-        if (!bluetoothAdapter.isEnabled()) {
+    private void onPermissionsReady() { //todo
+        if (bluetoothController.bluetoothAdapter == null) return;
+        if (!bluetoothController.bluetoothAdapter.isEnabled()) {
             enableBtLauncher.launch(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE));
             return;
         }
-        registerDiscoveryReceiver();
-        loadPairedDevices();
+        bluetoothController.registerDiscoveryReceiver(this);
+        bluetoothController.loadPairedDevices(onDeviceLoadCallBack);
     }
 
-    private boolean hasBluetoothPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            return ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED;
-        }
-        return ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH) == PackageManager.PERMISSION_GRANTED;
-    }
-
-    private boolean hasScanPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            return ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED &&
-                   ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
-        }
-        return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
-    }
-
-    private void setupBluetooth() {
-        bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        if (bluetoothAdapter == null) {
-            showToast("Bluetooth not supported");
-            finish();
-        }
-    }
-
-    private void loadPairedDevices() {
-        if (!hasBluetoothPermission() || bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) return;
-        try {
-            Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
-            devices.clear();
-            if (pairedDevices != null) devices.addAll(pairedDevices);
-            updateStatus("Found " + devices.size() + " paired devices — tap one to select");
-            devicesListDialog.getListAdapter().notifyDataSetChanged();
-            devicesListDialog.hideEmptyListText();
-        } catch (SecurityException e) {
-        }
-    }
+    //    private void loadPairedDevices() {
+    //        if (!hasBluetoothPermission() || bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) return;
+    //        try {
+    //            Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
+    //            devices.clear();
+    //            if (pairedDevices != null) devices.addAll(pairedDevices);
+    //            updateStatus("Found " + devices.size() + " paired devices — tap one to select");
+    //            devicesListDialog.getListAdapter().notifyDataSetChanged();
+    //            devicesListDialog.hideEmptyListText();
+    //        } catch (SecurityException e) {
+    //        }
+    //    }
 
     private void scanDevices() {
-
+        bluetoothController.scanDevices(this);
 
         devicesListDialog.show();
-
-        if (!hasBluetoothPermission() || !hasScanPermission()) {
-            checkAndRequestPermissions();
-            return;
-        }
-        if (!bluetoothAdapter.isEnabled()) {
-            onPermissionsReady();
-            return;
-        }
-        registerDiscoveryReceiver();
-
-        try {
-            if (bluetoothAdapter.isDiscovering()) bluetoothAdapter.cancelDiscovery();
-        } catch (SecurityException e) { }
-
-        devices.clear();
-        loadPairedDevices();
-
         devicesListDialog.setMessage(getString(R.string.btn_scanning));
-
-
-        try {
-            if (bluetoothAdapter.startDiscovery()) updateStatus("Scanning for nearby devices...");
-            else {
-                showToast("Failed to start scanning");
-            }
-        } catch (SecurityException e) {
-
-        }
     }
 
 
@@ -418,155 +316,120 @@ public class MainActivity extends AppCompatActivity {
             showToast("Select a device first");
             return;
         }
-        if (isConnected) return;
-        if (!hasBluetoothPermission()) {
-            checkAndRequestPermissions();
-            return;
-        }
+        if (bluetoothController.isConnected) return;
+        bluetoothController.connectDevice(this);
 
         btnConnect.setEnabled(false);
-        updateStatus("Connecting via BLE to " + getDeviceName(selectedDevice) + "...");
-        
-        try {
-            if (bluetoothAdapter.isDiscovering()) bluetoothAdapter.cancelDiscovery();
-        } catch (SecurityException e) {}
+        updateStatus("Connecting via BLE to " + bluetoothController.getDeviceName(selectedDevice) + "...");
 
-        // Connect using BLE (GATT)
-        try {
-            bluetoothGatt = selectedDevice.connectGatt(this, false, gattCallback);
-        } catch (SecurityException e) {
-            showToast("Permission denied connecting to GATT");
-        }
     }
 
-    private final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
-        @Override
-        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-            if (newState == BluetoothProfile.STATE_CONNECTED) {
-                mainHandler.post(() -> updateStatus("Connected! Discovering BLE services..."));
-                try {
-                    gatt.discoverServices();
-                } catch (SecurityException e) {}
-            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                isConnected = false;
-                writeCharacteristic = null;
-                notifyCharacteristic = null;
-                mainHandler.post(() -> {
-                    updateUI(false);
-                    updateStatus("Disconnected");
-                    showToast("Disconnected");
-                });
-            }
-        }
-
-        @Override
-        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                BluetoothGattService hm10Service = gatt.getService(HM10_SERVICE);
-                BluetoothGattService nordicService = gatt.getService(NORDIC_SERVICE);
-                
-                if (hm10Service != null) {
-                    writeCharacteristic = hm10Service.getCharacteristic(HM10_CHAR);
-                    notifyCharacteristic = writeCharacteristic;
-                } else if (nordicService != null) {
-                    writeCharacteristic = nordicService.getCharacteristic(NORDIC_RX_CHAR);
-                    notifyCharacteristic = nordicService.getCharacteristic(NORDIC_TX_CHAR);
-                } else {
-                    for (BluetoothGattService service : gatt.getServices()) {
-                        for (BluetoothGattCharacteristic c : service.getCharacteristics()) {
-                            int props = c.getProperties();
-                            if ((props & (BluetoothGattCharacteristic.PROPERTY_WRITE | BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)) != 0) {
-                                writeCharacteristic = c;
-                            }
-                            if ((props & (BluetoothGattCharacteristic.PROPERTY_NOTIFY | BluetoothGattCharacteristic.PROPERTY_INDICATE)) != 0) {
-                                notifyCharacteristic = c;
-                            }
-                        }
-                    }
-                }
-
-                if (writeCharacteristic != null) {
-                    isConnected = true;
-                    mainHandler.post(() -> {
-                        updateUI(true);
-                        updateStatus("Ready! Connected to BLE Serial");
-                        showToast("Connected!");
-                    });
-                    
-                    if (notifyCharacteristic != null) {
-                        try {
-                            gatt.setCharacteristicNotification(notifyCharacteristic, true);
-                            BluetoothGattDescriptor descriptor = notifyCharacteristic.getDescriptor(CCCD_UUID);
-                            if (descriptor != null) {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                    gatt.writeDescriptor(descriptor, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                                } else {
-                                    descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                                    gatt.writeDescriptor(descriptor);
-                                }
-                            }
-                        } catch (SecurityException e) {}
-                    }
-                } else {
-                    mainHandler.post(() -> {
-                        updateStatus("Error: Device is not a BLE Serial module");
-                        try { gatt.disconnect(); } catch (SecurityException e) {}
-                    });
-                }
-            }
-        }
-
-        @Override
-        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-            byte[] data = characteristic.getValue();
-            if (data != null && data.length > 0) {
-                String str = new String(data).trim();
-                if (!str.isEmpty()) {
-                    mainHandler.post(() -> dataText.setText("Received: " + str));
-                }
-            }
-        }
-        
-        @Override
-        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] data) {
-            if (data != null && data.length > 0) {
-                String str = new String(data).trim();
-                if (!str.isEmpty()) {
-                    mainHandler.post(() -> dataText.setText("Received: " + str));
-                }
-            }
-        }
-    };
+    //    private final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
+    //        @Override
+    //        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+    //            if (newState == BluetoothProfile.STATE_CONNECTED) {
+    //                mainHandler.post(() -> updateStatus("Connected! Discovering BLE services..."));
+    //                try {
+    //                    gatt.discoverServices();
+    //                } catch (SecurityException e) {}
+    //            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+    //                isConnected = false;
+    //                writeCharacteristic = null;
+    //                notifyCharacteristic = null;
+    //                mainHandler.post(() -> {
+    //                    updateUI(false);
+    //                    updateStatus("Disconnected");
+    //                    showToast("Disconnected");
+    //                });
+    //            }
+    //        }
+    //
+    //        @Override
+    //        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+    //            if (status == BluetoothGatt.GATT_SUCCESS) {
+    //                BluetoothGattService hm10Service = gatt.getService(HM10_SERVICE);
+    //                BluetoothGattService nordicService = gatt.getService(NORDIC_SERVICE);
+    //
+    //                if (hm10Service != null) {
+    //                    writeCharacteristic = hm10Service.getCharacteristic(HM10_CHAR);
+    //                    notifyCharacteristic = writeCharacteristic;
+    //                } else if (nordicService != null) {
+    //                    writeCharacteristic = nordicService.getCharacteristic(NORDIC_RX_CHAR);
+    //                    notifyCharacteristic = nordicService.getCharacteristic(NORDIC_TX_CHAR);
+    //                } else {
+    //                    for (BluetoothGattService service : gatt.getServices()) {
+    //                        for (BluetoothGattCharacteristic c : service.getCharacteristics()) {
+    //                            int props = c.getProperties();
+    //                            if ((props & (BluetoothGattCharacteristic.PROPERTY_WRITE | BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)) != 0) {
+    //                                writeCharacteristic = c;
+    //                            }
+    //                            if ((props & (BluetoothGattCharacteristic.PROPERTY_NOTIFY | BluetoothGattCharacteristic.PROPERTY_INDICATE)) != 0) {
+    //                                notifyCharacteristic = c;
+    //                            }
+    //                        }
+    //                    }
+    //                }
+    //
+    //                if (writeCharacteristic != null) {
+    //                    isConnected = true;
+    //                    mainHandler.post(() -> {
+    //                        updateUI(true);
+    //                        updateStatus("Ready! Connected to BLE Serial");
+    //                        showToast("Connected!");
+    //                    });
+    //
+    //                    if (notifyCharacteristic != null) {
+    //                        try {
+    //                            gatt.setCharacteristicNotification(notifyCharacteristic, true);
+    //                            BluetoothGattDescriptor descriptor = notifyCharacteristic.getDescriptor(CCCD_UUID);
+    //                            if (descriptor != null) {
+    //                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+    //                                    gatt.writeDescriptor(descriptor, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+    //                                } else {
+    //                                    descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+    //                                    gatt.writeDescriptor(descriptor);
+    //                                }
+    //                            }
+    //                        } catch (SecurityException e) {}
+    //                    }
+    //                } else {
+    //                    mainHandler.post(() -> {
+    //                        updateStatus("Error: Device is not a BLE Serial module");
+    //                        try { gatt.disconnect(); } catch (SecurityException e) {}
+    //                    });
+    //                }
+    //            }
+    //        }
+    //
+    //        @Override
+    //        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+    //            byte[] data = characteristic.getValue();
+    //            if (data != null && data.length > 0) {
+    //                String str = new String(data).trim();
+    //                if (!str.isEmpty()) {
+    //                    mainHandler.post(() -> dataText.setText("Received: " + str));
+    //                }
+    //            }
+    //        }
+    //
+    //        @Override
+    //        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] data) {
+    //            if (data != null && data.length > 0) {
+    //                String str = new String(data).trim();
+    //                if (!str.isEmpty()) {
+    //                    mainHandler.post(() -> dataText.setText("Received: " + str));
+    //                }
+    //            }
+    //        }
+    //    };
 
     private void sendData(String data) {
-        if (!isConnected || bluetoothGatt == null || writeCharacteristic == null) return; 
-
-        byte[] bytes = data.getBytes();
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                bluetoothGatt.writeCharacteristic(writeCharacteristic, bytes, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
-            } else {
-                writeCharacteristic.setValue(bytes);
-                bluetoothGatt.writeCharacteristic(writeCharacteristic);
-            }
-            mainHandler.post(() -> updateStatus("Sent: " + data.trim()));
-        } catch (SecurityException e) {}
+        bluetoothController.sendData(data);
     }
 
     private void disconnect() {
-        if (bluetoothGatt != null) {
-            try {
-                bluetoothGatt.disconnect();
-                bluetoothGatt.close();
-            } catch (SecurityException e) {}
-            bluetoothGatt = null;
-        }
-        isConnected = false;
-        writeCharacteristic = null;
-        notifyCharacteristic = null;
-        
+        bluetoothController.disconnect();
         updateUI(false);
-        updateStatus("Disconnected");
     }
 
 
@@ -583,7 +446,7 @@ public class MainActivity extends AppCompatActivity {
         System.out.println("motor:" + isMotorsOn);
 
         btnPower.setBackgroundColor(connected && isMotorsOn ? getColor(R.color.connected_green) : getColor(R.color.disconnected_red));
-        btnPower.setText(connected && isMotorsOn? R.string.powerMotorsOn:R.string.powerMotorsOff);
+        btnPower.setText(connected && isMotorsOn ? R.string.powerMotorsOn : R.string.powerMotorsOff);
         isMotorsOn = connected && isMotorsOn;
 
         btnJoyUp.setEnabled(connected);
@@ -603,13 +466,51 @@ public class MainActivity extends AppCompatActivity {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 
-    private String getDeviceName(BluetoothDevice device) {
-        try {
-            if (!hasBluetoothPermission()) return device.getAddress();
-            String name = device.getName();
-            return (name != null && !name.isEmpty()) ? name : device.getAddress();
-        } catch (SecurityException e) {
-            return device.getAddress();
+
+    BluetoothController.CallBack bleCallback = new BluetoothController.CallBack() {
+        @Override
+        public void onConnect() {
+            updateUI(true);
+            showToast("Connected!");
         }
-    }
+
+        @Override
+        public void onDisconnect() {
+
+        }
+
+        @Override
+        public void onStatusUpdate(BluetoothStatus status) {
+            switch (status.status) {
+
+            }
+            updateStatus(status.message);
+            System.out.println("Bluetooth status: " +status.status + ":" + status.message);
+        }
+    };
+
+    BluetoothController.CheckPermission checkPermissionCallBack = new BluetoothController.CheckPermission() {
+        @Override
+        public boolean hasBluetoothPermission() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                return ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED;
+            }
+            return ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH) == PackageManager.PERMISSION_GRANTED;
+        }
+
+        @Override
+        public boolean hasScanPermission() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                return ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED &&
+                        ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+            }
+            return ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        }
+    };
+
+    BluetoothController.OnDeviceLoad onDeviceLoadCallBack = () -> {
+        updateStatus("Found " + bluetoothController.devices.size() + " paired devices — tap one to select");
+        devicesListDialog.getListAdapter().notifyDataSetChanged();
+        devicesListDialog.hideEmptyListText();
+    };
 }
