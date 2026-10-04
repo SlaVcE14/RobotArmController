@@ -4,6 +4,8 @@ A complete software stack (Android App + Arduino Code) for controlling a 4-axis 
 
 ## Features
 * **BLE Support**: Connects seamlessly to popular Bluetooth Low Energy serial modules (HM-10, AT-09, JDY-08, Nordic UART).
+> [!NOTE]
+> The Bluetooth logic is in [BLECtrl](https://github.com/SlaVcE14/BLECtrl)
 
 ## Hardware Requirements
 * **Arduino Board** (Uno, Nano, Mega, etc.)
