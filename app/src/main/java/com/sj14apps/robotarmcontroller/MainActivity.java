@@ -26,8 +26,8 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.sj14apps.robotarmcontroller.about.AboutActivity;
-import com.sj14apps.robotarmcontroller.ble.BluetoothController;
-import com.sj14apps.robotarmcontroller.ble.BluetoothStatus;
+import com.sj14apps.library.blectrl.BluetoothController;
+import com.sj14apps.library.blectrl.BluetoothStatus;
 import com.sjapps.library.customdialog.ListDialog;
 import com.sjapps.library.customdialog.ListItemValues;
 

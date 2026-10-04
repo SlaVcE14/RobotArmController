@@ -8,6 +8,7 @@ material = "1.12.0"
 activity = "1.8.0"
 constraintlayout = "2.2.1"
 sjDialg = "1.7.0.1"
+bleCtrl = "722422be07"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -18,6 +19,7 @@ material = { group = "com.google.android.material", name = "material", version.r
 activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
 constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
 sjDialg = { group = "com.github.sj14apps", name = "SJ-Dialog", version.ref = "sjDialg" }
+bleCtrl = { group = "com.github.Slavce14", name = "BLECtrl", version.ref = "bleCtrl" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
