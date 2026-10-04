@@ -6,6 +6,7 @@ public class LibraryList extends ListGenerator{
     @Override
     public void init() {
         addItem("SJ Dialog", BuildConfig.VERSION_NAME, "https://github.com/SlaVcE14/SJ-Dialog");
+        addItem("BLECtrl", "1.0", "https://github.com/SlaVcE14/BLECtrl");
     }
 }
 
