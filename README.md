@@ -1,5 +1,7 @@
 # Robot Arm Controller
 
+<img src="https://slavce.sj14apps.com/img/projects/robotArmController.png" width="300" />
+
 A complete software stack (Android App + Arduino Code) for controlling a 4-axis robotic arm over Bluetooth Low Energy (BLE). 
 
 ## Features
