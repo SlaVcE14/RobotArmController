@@ -3,13 +3,13 @@
 A complete software stack (Android App + Arduino Code) for controlling a 4-axis robotic arm over Bluetooth Low Energy (BLE). 
 
 ## Features
-* **BLE Support**: Connects seamlessly to popular Bluetooth Low Energy serial modules (HM-10, AT-09, JDY-08, Nordic UART).
+* **BLE Support**: Connects seamlessly to popular Bluetooth Low Energy serial modules (HC-06, HM-10, AT-09, JDY-08, Nordic UART).
 > [!NOTE]
 > The Bluetooth logic is in [BLECtrl](https://github.com/SlaVcE14/BLECtrl)
 
 ## Hardware Requirements
 * **Arduino Board** (Uno, Nano, Mega, etc.)
-* **BLE Module** (HM-10, AT-09, or equivalent BLE serial module)
+* **BLE Module** (HC-06, HM-10, AT-09, or equivalent BLE serial module)
 * **4x Servo Motors** (e.g., SG90 or MG996R)
 * **5V Power Supply** (Dedicated power for the servos—do not power them directly from the Arduino's 5V pin!)
 
@@ -53,7 +53,7 @@ The app communicates with the Arduino by sending simple text commands terminated
 
 **Action Commands:**
 * `P` - Power the servo motors ()
-* `H` - Send all servos to Home (90°) position.
+* `H` - Send all servos to Home position.
 
 ## Customization
 * **Servo Speed**: You can make the robotic arm move faster or slower by changing `#define SERVO_SPEED_DELAY 15` in the Arduino sketch. Higher numbers = slower movement.
